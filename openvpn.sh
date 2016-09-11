@@ -81,33 +81,15 @@ timezone() { local timezone="${1:-EST5EDT}"
 
 ### vpn: setup openvpn client
 # Arguments:
-#   server) VPN GW server
+#   serverfile) PIA connection name
 #   user) user name on VPN
 #   pass) password on VPN
 # Return: configured .ovpn file
 vpn() { local server="$1" user="$2" pass="$3" \
             conf="/vpn/vpn.conf" auth="/vpn/vpn.auth"
 
-    cat >$conf <<-EOF
-		client
-		dev tun
-		proto udp
-		remote $server 1194
-		resolv-retry infinite
-		nobind
-		persist-key
-		persist-tun
-		ca /vpn/vpn-ca.crt
-		tls-client
-		remote-cert-tls server
-		auth-user-pass
-		comp-lzo
-		verb 1
-		reneg-sec 0
-		redirect-gateway def1
-		auth-user-pass $auth
-		EOF
-
+    cat /vpn/$server.ovpn >$conf
+    echo "auth-user-pass $auth" >>$conf
     echo "$user" >$auth
     echo "$pass" >>$auth
     chmod 0600 $auth
@@ -184,7 +166,5 @@ elif ps -ef | egrep -v 'grep|openvpn.sh' | grep -q openvpn; then
     echo "Service already running, please restart container to apply changes"
 else
     [[ -e /vpn/vpn.conf ]] || { echo "ERROR: VPN not configured!"; sleep 120; }
-    [[ -e /vpn/vpn-ca.crt ]] || grep -q '<cert>' /vpn/vpn.conf ||
-        { echo "ERROR: VPN cert missing!"; sleep 120; }
-    exec sg vpn -c "openvpn --config /vpn/vpn.conf"
+    exec sg vpn -c "openvpn --cd /vpn/ --config vpn.conf"
 fi
